@@ -1,0 +1,22 @@
+{
+    "development": {
+      "host": "db",
+      "port": 3306,
+      "database": "PLATINIUMBANK",
+      "username": "root",
+      "password": "BANK_123@Platinium",
+      "dialect": "mysql",
+      "privateKey": "NotSoPrivateKey",
+      "logging": true
+    },
+    "production": {
+      "host": "db",
+      "port": 3306,
+      "database": "PLATINIUMBANK",
+      "username": "root",
+      "password": "BANK_123@Platinium",
+      "dialect": "mysql",
+      "privateKey": "ToSetToAFuckingStrongPrivateKey",
+      "logging": true
+    }
+  }

@@ -1,0 +1,22 @@
+# Utiliser une image officielle de Node.js
+FROM node:14
+
+# Créer un répertoire de travail
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+# Copier les dépendances
+COPY package.json /usr/src/app/
+RUN npm install
+
+# Copier le reste des fichiers
+COPY . /usr/src/app
+
+# Installer wait-on globalement
+RUN npm install -g wait-on
+
+# Exposer le port de l'application
+EXPOSE 3000
+
+# Commande pour démarrer l'application avec une attente explicite
+CMD ["sh", "-c", "wait-on tcp:db:3306 && npm start"]

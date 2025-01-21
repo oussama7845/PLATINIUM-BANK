@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=BANK_123@Platinium
+      - DB_NAME=PLATINIUMBANK
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - api_default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  db:
+    image: mysql:latest
+    environment:
+      - MYSQL_ROOT_PASSWORD=BANK_123@Platinium
+      - MYSQL_DATABASE=PLATINIUMBANK
+    networks:
+      - api_default
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pBANK_123@Platinium"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  api_default:
+    driver: bridge
