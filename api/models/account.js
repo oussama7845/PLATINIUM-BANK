@@ -35,8 +35,8 @@ module.exports = (sequelize, DataTypes) => {
         onDelete: "CASCADE",
       });
   
-      Account.belongsTo(models.User, {
-        foreignKey: "userId",
+      Account.belongsTo(models.Customer, {
+        foreignKey: "CustomerId",
         onDelete: "CASCADE",
       });
     };

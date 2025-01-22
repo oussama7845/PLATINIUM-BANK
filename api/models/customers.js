@@ -1,9 +1,17 @@
 module.exports = (sequelize, DataTypes) => {
-    const User = sequelize.define("User", {
+    const Customer = sequelize.define("Customer", {
       id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true,
+      },
+      codepin:{
+        type:DataTypes.INTEGER,
+        allowNull:false,
+      },
+      idCostumer:{
+        type:DataTypes.INTEGER,
+        allowNull:false,
       },
       firstname: {
         type: DataTypes.STRING,
@@ -27,25 +35,21 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         unique: true,
       },
-      role: {
-        type: DataTypes.ENUM("Client", "Manager", "Admin"),
-        defaultValue: "Client",
-      },
       accountStatus: {
         type: DataTypes.ENUM("Active", "Suspended", "Deactivated"),
         defaultValue: "Active",
       },
     });
   
-    User.associate = (models) => {
-      // Uniquement si le rôle est Client
-      User.hasOne(models.Account, {
-        foreignKey: "userId",
+    Customer.associate = (models) => {
+
+      Customer.hasOne(models.Account, {
+        foreignKey: "CustomerId",
         onDelete: "CASCADE",
-        constraints: false, // Supprime les contraintes pour les rôles sans compte
+        constraints: false, 
       });
     };
   
-    return User;
+    return Customer;
   };
   
