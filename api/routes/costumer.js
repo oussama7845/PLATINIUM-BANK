@@ -43,13 +43,15 @@ router.post('/createCustomer', async (req, res) => {
     }
 
     // Création du client
+const pass = generatePassword();
+console.log(pass)
     const newCustomer = await Customer.create({
       firstname,
       lastname,
       email,
       phoneNumber,
       idCostumer: generateIdCustomer(),
-      password: generatePassword(),
+      password: pass,
       codePin: generateCodePin(),
       accountStatus: 'Active',
     });
@@ -63,11 +65,11 @@ router.post('/createCustomer', async (req, res) => {
 
 // Authentification
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { idCostumer, password } = req.body;
 
   try {
     // Recherche de l'utilisateur
-    const customer = await Customer.findOne({ where: { email } });
+    const customer = await Customer.findOne({ where: { idCostumer } });
     if (!customer) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
@@ -82,6 +84,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       {
         id: customer.id,
+        idCostumer: customer.idCostumer,
         email: customer.email,
         firstname: customer.firstname,
         lastname: customer.lastname,
@@ -92,6 +95,7 @@ router.post('/login', async (req, res) => {
     // Réponse avec cookie et données utilisateur
     res.status(200).json({
       id: customer.id,
+      idCostumer: customer.idCostumer,
       email: customer.email,
       firstname: customer.firstname,
       lastname: customer.lastname,
