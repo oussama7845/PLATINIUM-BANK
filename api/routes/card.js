@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Card } = require('../models/card');
+const { Card, Customer, Account } = require('../models');
 
 /**
  * Génère un numéro de carte unique.
@@ -197,6 +197,7 @@ router.put('/blockCard', async (req, res) => {
   }
 });
 
+
 /**
  * @swagger
  * /onlinePayment:
@@ -210,11 +211,20 @@ router.put('/blockCard', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               cardId:
- *                 type: integer
- *               amount:
- *                 type: number
- *                 description: Montant du paiement
+*                 firstname:
+*                   type: string
+*                 lastname:
+*                   type: string
+*                 cardNumber:
+*                   type: string
+*                 expirationDate:
+*                   type: string
+*                   format: date
+*                 securityCode:
+*                   type: string
+*                 amount:
+*                   type: number
+*                   description: Montant du paiement
  *     responses:
  *       200:
  *         description: Paiement effectué avec succès
@@ -224,30 +234,53 @@ router.put('/blockCard', async (req, res) => {
  *         description: Carte introuvable
  */
 router.post('/onlinePayment', async (req, res) => {
-  const { cardId, amount } = req.body;
+  const { firstname, lastname, cardNumber, expirationDate, securityCode, amount } = req.body;
 
   try {
-    const card = await Card.findOne({ where: { id: cardId } });
+
+    const customer = await Customer.findOne({ where: { firstname, lastname } });
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const account = await Account.findOne({ where: { CustomerId: customer.id } });
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const card = await Card.findOne({ where: { cardNumber, expirationDate, securityCode } });
     if (!card) {
-      return res.status(404).json({ error: 'Carte introuvable' });
+      return res.status(404).json({ error: 'Card not found' });
     }
 
     if (card.cardStatus !== 'Active') {
-      return res.status(400).json({ error: 'La carte n\'est pas active.' });
+      return res.status(400).json({ error: 'Card is not active' });
     }
 
     if (!card.onlinePaymentsEnabled) {
-      return res.status(400).json({ error: 'Les paiements en ligne sont désactivés pour cette carte.' });
+      return res.status(400).json({ error: 'Online payments are disabled for this card' });
     }
 
     if (amount > card.onlinePaymentLimit) {
-      return res.status(400).json({ error: 'Le montant dépasse le plafond de paiement en ligne.' });
+      return res.status(400).json({ error: 'Amount exceeds online payment limit' });
     }
 
-    // Simuler un paiement en ligne réussi
-    res.status(200).json({ message: 'Paiement effectué avec succès.', amount });
+    // Initiate a secure payment transaction using a payment gateway or service
+
+    // Update account balance within a database transaction (assuming a transaction library)
+    await database.transaction(async () => {
+      account.balance -= amount;
+      await account.save();
+    });
+
+    res.status(200).json({ message: 'Payment successful', amount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); // Log the error for debugging
+    if (err instanceof DatabaseError) {
+      res.status(500).json({ error: 'Database error occurred' });
+    } else {
+      res.status(500).json({ error: 'An error occurred during payment processing' });
+    }
   }
 });
 

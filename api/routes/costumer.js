@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Customer } = require('../models');
+const { Customer, Account, Card } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const ejs = require('ejs');
 const nodemailer = require('nodemailer');
@@ -11,6 +11,7 @@ let env = process.env.NODE_ENV || "development";
 let config = require(path.join(__dirname, "..", "config", "config.json"))[env];
 // Générateurs
 const generateIdCustomer = () => uuidv4();
+const generateAccountNumber = () => uuidv4();
 const generatePassword = () => Math.random().toString(36).slice(-8);
 const generateCodePin = () => Math.floor(1000 + Math.random() * 9000);
 // Configuration du transporteur SMTP pour envoyer des emails
@@ -23,7 +24,17 @@ const transporter = nodemailer.createTransport({
   }
 
 });
-
+const generateCardNumber = () => {
+  return Array.from({ length: 4 }, () => Math.floor(1000 + Math.random() * 9000)).join('');
+};
+const generateSecurityCode = () => {
+  return Math.floor(100 + Math.random() * 900).toString();
+};
+const generateExpirationDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() + 3);
+  return date;
+};
 // Middleware de validation d'email
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -94,11 +105,12 @@ router.get('/fetchAllCustomers', async (req, res) => {
   }
 });
 
+
 /**
  * @swagger
  * /createCustomer:
  *   post:
- *     summary: Crée un nouveau client
+ *     summary: Crée un nouveau client, un compte et une carte
  *     tags: [Customers]
  *     requestBody:
  *       required: true
@@ -113,24 +125,40 @@ router.get('/fetchAllCustomers', async (req, res) => {
  *                 type: string
  *               email:
  *                 type: string
+ *                 format: email
  *               phoneNumber:
  *                 type: string
+ *               balance:
+ *                 type: number
+ *               cardType:
+ *                  type: string
+ *             required:
+ *               - firstname
+ *               - lastname
+ *               - email
  *     responses:
  *       201:
- *         description: Client créé avec succès
+ *         description: Client, compte et carte créés avec succès
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Customer'
+ *               type: object
+ *               properties:
+ *                 customer:
+ *                   $ref: '#/components/schemas/Customer'
+ *                 account:
+ *                   $ref: '#/components/schemas/Account'
+ *                 card:
+ *                   $ref: '#/components/schemas/Card'
  *       400:
- *         description: Format d'email invalide
+ *         description: Données invalides
  *       409:
  *         description: Email déjà utilisé
  *       500:
  *         description: Erreur serveur
  */
 router.post('/createCustomer', async (req, res) => {
-  const { firstname, lastname, email, phoneNumber } = req.body;
+  const { firstname, lastname, email, phoneNumber, balance,cardType } = req.body;
 
   // Validation de l'email
   if (!validateEmail(email)) {
@@ -143,10 +171,11 @@ router.post('/createCustomer', async (req, res) => {
     if (existingCustomer) {
       return res.status(409).json({ error: 'Email déjà utilisé' });
     }
-
-    // Création du client
     const pass = generatePassword();
     console.log(pass)
+
+
+    // Création du client
     const newCustomer = await Customer.create({
       firstname,
       lastname,
@@ -157,6 +186,30 @@ router.post('/createCustomer', async (req, res) => {
       codePin: generateCodePin(),
       accountStatus: 'Active',
     });
+
+    // Création du compte
+    const newAccount = await Account.create({
+      CustomerId: newCustomer.id,
+      accountNumber: generateAccountNumber(),
+      accountType: "Savings",
+      balance: balance || 0,
+    });
+
+    // Génération des informations de la carte
+    const cardNumber = generateCardNumber();
+    const expirationDate = generateExpirationDate();
+    const securityCode = generateSecurityCode();
+
+    // Création de la carte
+    const newCard = await Card.create({
+      accountId: newAccount.id,
+      cardNumber,
+      expirationDate,
+      securityCode,
+      cardType,
+
+    });
+
     // Envoi de l'email de bienvenue
     const templatePath = path.join(__dirname, '../modules/mail_Templates', 'newCostumer.ejs');
     const mailOptions = {
@@ -170,19 +223,18 @@ router.post('/createCustomer', async (req, res) => {
         password: pass,
         idCostumer: newCustomer.idCostumer,
 
-
-
-
       })
     };
 
     await transporter.sendMail(mailOptions);
-    res.status(201).json(newCustomer);
+
+    res.status(201).json({ customer: newCustomer, account: newAccount, card: newCard });
   } catch (error) {
     console.error('Erreur lors de la création du client:', error);
     res.status(500).json({ error: 'Erreur serveur lors de la création du client.' });
   }
 });
+
 
 /**
  * @swagger
