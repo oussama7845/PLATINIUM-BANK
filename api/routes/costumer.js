@@ -4,18 +4,86 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Customer } = require('../models');
 const { v4: uuidv4 } = require('uuid');
-const config = require('../config/config.json')[process.env.NODE_ENV || 'development'];
-require('dotenv').config();
-
+const ejs = require('ejs');
+const nodemailer = require('nodemailer');
+let path = require("path");
+let env = process.env.NODE_ENV || "development";
+let config = require(path.join(__dirname, "..", "config", "config.json"))[env];
 // Générateurs
 const generateIdCustomer = () => uuidv4();
 const generatePassword = () => Math.random().toString(36).slice(-8);
 const generateCodePin = () => Math.floor(1000 + Math.random() * 9000);
+// Configuration du transporteur SMTP pour envoyer des emails
+
+const transporter = nodemailer.createTransport({
+  service: 'Gmail',
+  auth: {
+    user: "platiniumbanque@gmail.com",
+    pass: 'gxua kcrq zlse wmnc',
+  }
+
+});
 
 // Middleware de validation d'email
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-// Récupérer tous les clients
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Customer:
+ *       type: object
+ *       required:
+ *         - firstname
+ *         - lastname
+ *         - email
+ *         - password
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID auto-généré du client
+ *         firstname:
+ *           type: string
+ *           description: Prénom du client
+ *         lastname:
+ *           type: string
+ *           description: Nom du client
+ *         email:
+ *           type: string
+ *           description: Adresse email du client
+ *         phoneNumber:
+ *           type: string
+ *           description: Numéro de téléphone
+ *         idCostumer:
+ *           type: string
+ *           description: UUID unique pour le client
+ *         codePin:
+ *           type: integer
+ *           description: Code PIN du client
+ *         accountStatus:
+ *           type: string
+ *           enum: [Active, Suspended, Deactivated]
+ *           description: Statut du compte
+ */
+
+/**
+ * @swagger
+ * /fetchAllCustomers:
+ *   get:
+ *     summary: Récupère tous les clients
+ *     tags: [Customers]
+ *     responses:
+ *       200:
+ *         description: Liste de tous les clients
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Customer'
+ *       500:
+ *         description: Erreur serveur
+ */
 router.get('/fetchAllCustomers', async (req, res) => {
   try {
     const customers = await Customer.findAll();
@@ -26,7 +94,41 @@ router.get('/fetchAllCustomers', async (req, res) => {
   }
 });
 
-// Créer un nouveau client
+/**
+ * @swagger
+ * /createCustomer:
+ *   post:
+ *     summary: Crée un nouveau client
+ *     tags: [Customers]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstname:
+ *                 type: string
+ *               lastname:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Client créé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Customer'
+ *       400:
+ *         description: Format d'email invalide
+ *       409:
+ *         description: Email déjà utilisé
+ *       500:
+ *         description: Erreur serveur
+ */
 router.post('/createCustomer', async (req, res) => {
   const { firstname, lastname, email, phoneNumber } = req.body;
 
@@ -43,8 +145,8 @@ router.post('/createCustomer', async (req, res) => {
     }
 
     // Création du client
-const pass = generatePassword();
-console.log(pass)
+    const pass = generatePassword();
+    console.log(pass)
     const newCustomer = await Customer.create({
       firstname,
       lastname,
@@ -55,7 +157,26 @@ console.log(pass)
       codePin: generateCodePin(),
       accountStatus: 'Active',
     });
+    // Envoi de l'email de bienvenue
+    const templatePath = path.join(__dirname, '../modules/mail_Templates', 'newCostumer.ejs');
+    const mailOptions = {
+      from: "platiniumbanque@gmail.com",
+      to: newCustomer.email,
+      subject: 'Bienvenue à Platinium Banque',
+      html: await ejs.renderFile(templatePath, {
+        firstname: newCustomer.firstname,
+        lastname: newCustomer.lastname,
+        codePin: newCustomer.codePin,
+        password: pass,
+        idCostumer: newCustomer.idCostumer,
 
+
+
+
+      })
+    };
+
+    await transporter.sendMail(mailOptions);
     res.status(201).json(newCustomer);
   } catch (error) {
     console.error('Erreur lors de la création du client:', error);
@@ -63,24 +184,64 @@ console.log(pass)
   }
 });
 
-// Authentification
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Authentifie un client
+ *     tags: [Customers]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idCostumer:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Authentification réussie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 idCostumer:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstname:
+ *                   type: string
+ *                 lastname:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *       403:
+ *         description: Mot de passe incorrect
+ *       404:
+ *         description: Utilisateur introuvable
+ *       500:
+ *         description: Erreur serveur
+ */
 router.post('/login', async (req, res) => {
   const { idCostumer, password } = req.body;
 
   try {
-    // Recherche de l'utilisateur
     const customer = await Customer.findOne({ where: { idCostumer } });
     if (!customer) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    // Vérification du mot de passe
     const isMatch = await bcrypt.compare(password, customer.password);
     if (!isMatch) {
       return res.status(403).json({ error: 'Mot de passe incorrect' });
     }
 
-    // Génération du token JWT
     const token = jwt.sign(
       {
         id: customer.id,
@@ -92,7 +253,7 @@ router.post('/login', async (req, res) => {
       config.privateKey,
       { expiresIn: '1y' }
     );
-    // Réponse avec cookie et données utilisateur
+
     res.status(200).json({
       id: customer.id,
       idCostumer: customer.idCostumer,
@@ -107,4 +268,69 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+/**
+ * @swagger
+ * /changePassword:
+ *   post:
+ *     summary: Permet à un client de changer son mot de passe
+ *     tags: [Customers]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idCostumer:
+ *                 type: string
+ *                 description: Identifiant unique du client
+ *               oldPassword:
+ *                 type: string
+ *                 description: Ancien mot de passe
+ *               newPassword:
+ *                 type: string
+ *                 description: Nouveau mot de passe
+ *     responses:
+ *       200:
+ *         description: Mot de passe changé avec succès
+ *       400:
+ *         description: Ancien mot de passe incorrect ou autre erreur
+ *       404:
+ *         description: Client introuvable
+ *       500:
+ *         description: Erreur serveur
+ */
+router.put('/changePassword', async (req, res) => {
+  const { idCostumer, oldPassword, newPassword } = req.body;
+
+  try {
+    // Vérification si le client existe
+    const customer = await Customer.findOne({ where: { idCostumer } });
+    if (!customer) {
+      return res.status(404).json({ error: 'Client introuvable' });
+    }
+
+    // Vérification de l'ancien mot de passe
+    const isMatch = await bcrypt.compare(oldPassword, customer.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Ancien mot de passe incorrect' });
+    }
+
+    // Mise à jour du mot de passe
+    await Customer.update(
+      { password: newPassword },
+      { where: { idCostumer } }
+    );
+
+    res.status(200).json({ message: 'Mot de passe changé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors du changement de mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
+
+
+

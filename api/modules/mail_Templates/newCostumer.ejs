@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue à Platinium Banque</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #4a90e2;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .content {
+            padding: 20px;
+            color: #333333;
+        }
+
+        .content h2 {
+            font-size: 20px;
+            color: #4a90e2;
+        }
+
+        .content p {
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
+        .footer {
+            background-color: #f1f1f1;
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+            color: #888888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Platinium Banque</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <h2>Bienvenue à Platinium Banque</h2>
+            <p>Bonjour <%= firstname %>
+                    <%= lastname %>,</p>
+            <p>Nous sommes ravis de vous accueillir parmi nos clients. Votre compte bancaire a été créé avec succès.</p>
+
+            <h3>Vos identifiants temporaires :</h3>
+            <ul>
+                <li><span class="highlight">Code PIN : </span>
+                    <%= codePin %>
+                </li>
+                <li><span class="highlight">Identifiant : </span>
+                    <%= idCostumer %>
+                </li>
+                <li><span class="highlight">Mot de passe temporaire : </span>
+                    <%= password %>
+                </li>
+               
+                
+            </ul>
+            <p>Nous vous recommandons de modifier votre mot de passe dès votre première connexion pour garantir la
+                sécurité de votre compte.</p>
+
+            <h3>Comment accéder à votre compte ?</h3>
+            <p>Rendez-vous sur notre site web officiel :</p>
+            <p><a href="https://www.platinium-banque.com" class="highlight">https://www.platinium-banque.com</a></p>
+
+            <p>Si vous avez des questions, notre service client est disponible 24h/24 et 7j/7.</p>
+
+            <p>Merci de nous faire confiance.</p>
+            <p>L'équipe Platinium Banque</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            © 2025 Platinium Banque. Tous droits réservés.
+        </div>
+    </div>
+</body>
+
+</html>
